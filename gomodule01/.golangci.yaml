@@ -1,0 +1,22 @@
+run:
+  timeout: 1m
+  tests: true
+
+linters:
+  enable:
+    - gofmt
+    - gofumpt
+    - gci
+    - godot
+    - misspell
+    - whitespace
+    - mnd
+
+linters-settings:
+  gci:
+    sections:
+      - standard
+      - default
+      - localmodule
+    skip-generated: true
+    custom-order: true

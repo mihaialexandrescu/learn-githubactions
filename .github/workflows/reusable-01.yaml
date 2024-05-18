@@ -1,0 +1,49 @@
+name: reusable-01
+run-name: ${{ github.actor }} is learning GitHub Actions _reusable-01
+
+on:
+  workflow_call:
+    outputs:
+      gomodule01_output:
+        description: "The output of the command under gomodule01"
+        value: ${{ jobs.job-01.outputs.output1 }}
+
+jobs:
+  job-01:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:latest
+      options: --cpus 1
+    timeout-minutes: 3
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      output1: ${{ steps.run-gomodule01.outputs.hello}}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'gomodule01/go.mod'
+          cache: false
+          cache-dependency-path: "**/go.sum"
+      
+      - name: Expected failure
+        if: false
+        run: exit 6
+        continue-on-error: true
+      
+      - name: Display /etc/lsb-release
+        run: cat /etc/lsb-release
+
+      - name: Fix x509 issue
+        run: apt-get update && apt-get install -y --no-install-recommends ca-certificates
+
+      - name: Run gomodule01
+        id: run-gomodule01
+        # base64 is used to hide the multiline output and it will be decoded on the receiver side
+        run: |
+          out="$(cd gomodule01 && go run . | base64)"
+          echo "hello=$out" | tee -a $GITHUB_OUTPUT
+
+      - run: pwd

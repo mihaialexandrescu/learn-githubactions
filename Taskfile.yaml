@@ -1,0 +1,32 @@
+version: '3'
+
+tasks:
+  default:
+    deps:
+      - task: echo_sth
+        vars: { TEXT: 'before 2' }
+        silent: true
+      - task: loop_smth
+        vars: { CHAR: "B", LIMIT: 2, EXITCODE: 240 }
+      - task: loop_smth
+        vars: { CHAR: "C", LIMIT: 6, EXITCODE: 250 }
+
+  echo_sth:
+    cmds:
+      - echo {{.TEXT}}
+
+  loop_smth:
+    ignore_error: false
+    vars:
+      LIMIT: '{{ default 5 .LIMIT }}'
+      CHAR: '{{ default "A" .CHAR }}'
+      EXITCODE: '{{ default 0 .EXITCODE }}'
+    cmds:
+      - cmd: |
+          for VAR in {1..{{.LIMIT}}}
+          do
+            echo "{{.CHAR}}: $VAR"
+            sleep 1
+          done
+          exit {{.EXITCODE}}
+

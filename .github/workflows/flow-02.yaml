@@ -1,0 +1,60 @@
+name: flow-02
+run-name: ${{ github.actor }} is learning GitHub Actions again
+
+on:
+  workflow_run:
+    workflows: ["flow-01"]
+    types: ["requested"]
+
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  call-reusable-01-from-local-repo:
+    uses: ./.github/workflows/reusable-01.yaml
+
+  job2:
+    runs-on: ubuntu-latest
+    needs: [call-reusable-01-from-local-repo]
+    steps:
+      - name: Display output from another workflow file
+        run: echo ${{ needs.call-reusable-01-from-local-repo.outputs.gomodule01_output }} | base64 -d
+
+  call-reusable-02-for-build:
+    uses: ./.github/workflows/reusable-02-build.yaml
+    with:
+      binary_base_name: cmd01
+  
+  download-run-cleanup-binary:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:latest
+      options: --cpus 1
+    timeout-minutes: 3
+    needs: [call-reusable-02-for-build]
+    env:
+      binary_name: ${{ needs.call-reusable-02-for-build.outputs.binary_name }}
+    steps:
+      - run: test -n ${{ env.binary_name }}
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ env.binary_name }}
+
+      - name: Run ${{ env.binary_name }}
+        run: chmod u+x ${{ env.binary_name }} && ./${{ env.binary_name }}
+
+      - name: Remove artifact from store
+        uses: geekyeggo/delete-artifact@v5
+        with:
+          name: ${{ env.binary_name }}
+
+    
+
+

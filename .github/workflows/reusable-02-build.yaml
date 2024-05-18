@@ -1,0 +1,63 @@
+name: reusable-02
+run-name: ${{ github.actor }} is learning GitHub Actions _reusable-02
+
+on:
+  workflow_call:
+    inputs:
+      binary_base_name:
+        description: "The name of the command to be built under gomodule01"
+        type: string
+        default: 'cmd01_default'
+        required: false
+    outputs:
+      binary_name:
+        description: "The actual name of the command that was built under gomodule01"
+        value: ${{ jobs.build.outputs.file_name }}
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: ubuntu:latest
+      options: --cpus 1
+    timeout-minutes: 3
+    defaults:
+      run:
+        shell: bash
+    outputs:
+      file_name: ${{ steps.normalize-name.outputs.file_name }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'gomodule01/go.mod'
+          cache: false
+          cache-dependency-path: "**/go.sum"
+      
+      - name: Expected failure
+        if: false
+        run: exit 7
+        continue-on-error: true
+
+      - name: Fix x509 issue
+        run: apt-get update && apt-get install -y --no-install-recommends ca-certificates
+
+      - name: Create normalized file name
+        id: normalize-name
+        run: |
+          NormName=$(echo '${{ inputs.binary_base_name }}_${{ github.ref_name }}' | \
+            sed 's/[\.\/\\]/-/g' | \
+            tr '[:upper:]' '[:lower:]' | \
+            head -c 50)
+          echo "file_name=$NormName" | tee -a $GITHUB_OUTPUT
+      
+      - name: Build ${{ steps.normalize-name.outputs.file_name }} under gomodule01
+        id: build-gomodule01
+        run: go build -C gomodule01/ -o ${{ steps.normalize-name.outputs.file_name }} .
+      
+      - name: Upload artifact for ${{ steps.normalize-name.outputs.file_name }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.normalize-name.outputs.file_name }}
+          path: gomodule01/${{ steps.normalize-name.outputs.file_name }}
+          retention-days: 1
