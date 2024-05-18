@@ -1,0 +1,83 @@
+name: flow-01
+run-name: ${{ github.actor }} is learning GitHub Actions
+
+on: [push, workflow_dispatch]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  job-01:
+    runs-on: ubuntu-latest # github.com/actions/runner-images
+    container:
+      image: ubuntu:latest
+      options: --cpus 1
+    timeout-minutes: 5
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Install git # do it before actions/checkout because of https://github.com/actions/runner/issues/763#issuecomment-1435735340
+        run: apt update && apt install -y git && git version
+
+      - name: Set git safe.directory # do it because of https://github.com/actions/runner/issues/2033
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: 'gomodule01/go.mod'
+          cache: false
+          cache-dependency-path: "**/go.sum"
+      
+      - name: Expected failure
+        if: false
+        run: exit 5
+        continue-on-error: true
+      
+      - name: Display /etc/lsb-release
+        run: cat /etc/lsb-release
+
+      - name: Fix x509 issue
+        run: apt update && apt install -y --no-install-recommends ca-certificates
+
+      # - name: Check go mod tidy
+      #   shell: bash
+      #   run: |
+      #     set -v
+      #     cd gomodule01
+      #     go mod tidy
+      #     git diff --name-status --exit-code
+
+      - name: Check go mod tidy
+        shell: bash
+        run: |
+          set -v
+          cd gomodule01
+          go mod tidy -diff
+
+      - name: Run gomodule01
+        run: cd gomodule01 ; go run .
+
+      # - name: golangci-lint
+      #   uses: golangci/golangci-lint-action@v6
+      #   with:
+      #     version: v1.58
+      #     working-directory: gomodule01
+      #     skip-cache: true
+      #     skip-save-cache: true
+      #     args: --timeout=2m
+
+      - name: golangci-lint
+        uses: golangci/golangci-lint-action@v8
+        with:
+          version: v2.1
+          working-directory: gomodule01
+          skip-cache: true
+          skip-save-cache: true
+          args: --timeout=2m
+
